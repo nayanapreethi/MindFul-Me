@@ -137,7 +137,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data: propData, onNavigate }) => 
             {data.proactiveInsights.map((insight) => (
               <View key={insight.id} style={styles.alertContent}>
                 <Text style={styles.alertMessage}>{insight.message}</Text>
-        <Text style={[styles.alertSeverity, styles[insight.severity]]}>
+                <Text style={[styles.alertSeverity, styles[`${insight.severity}` as keyof typeof styles]]}>
                   {insight.severity.toUpperCase()}
                 </Text>
               </View>
@@ -150,7 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data: propData, onNavigate }) => 
           <VictoryChart theme={VictoryTheme.material} height={250} width={width - 60}>
             <VictoryAxis
               tickValues={[1, 2, 3, 4, 5, 6, 7]}
-              tickFormat={() => ['', '', '', '', '', '', '']}
+              tickFormat={() => ''}
               style={{ axis: { stroke: '#B0BEC5' } }}
             />
             <VictoryAxis
@@ -268,6 +268,7 @@ const styles = StyleSheet.create({
   alertSeverity: { fontSize: 10, fontWeight: '600', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
   high: { backgroundColor: '#FFCDD2', color: '#C62828' },
   medium: { backgroundColor: '#FFE0B2', color: '#EF6C00' },
+  low: { backgroundColor: '#C8E6C9', color: '#2E7D32' },
   sectionTitle: { fontSize: 20, fontWeight: '600', color: '#37474F', marginBottom: 16 },
   chartCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   chartLegend: { flexDirection: 'row', justifyContent: 'center', marginTop: 12 },

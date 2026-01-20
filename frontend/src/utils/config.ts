@@ -177,7 +177,6 @@ export const mlService = {
       headers: {
         'Content-Type': 'application/json',
       },
-      timeout: config.SETTINGS.REQUEST_TIMEOUT,
     };
 
     if (data && method !== 'GET') {
