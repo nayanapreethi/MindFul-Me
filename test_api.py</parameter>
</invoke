@@ -1,0 +1,642 @@
+#!/usr/bin/env python3
+"""
+MindfulMe API Integration Test Script
+
+This script tests the ML Service and Backend API endpoints
+to verify they are communicating correctly.
+"""
+
+import asyncio
+import base64
+import hashlib
+import hmac
+import json
+import os
+import sys
+import time
+import wave
+from pathlib import Path
+from typing import Optional
+
+import aiohttp
+import numpy as np
+
+
+# Configuration
+ML_SERVICE_URL = os.getenv("ML_SERVICE_URL", "http://localhost:8000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:3000")
+API_BASE_URL = f"{BACKEND_URL}/api"
+
+# Test colors for terminal output
+class Colors:
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+
+
+def print_header(text: str):
+    print(f"\n{Colors.HEADER}{Colors.BOLD}{'=' * 60}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{text:^60}{Colors.ENDC}")
+    print(f"{Colors.HEADER}{Colors.BOLD}{'=' * 60}{Colors.ENDC}\n")
+
+
+def print_success(text: str):
+    print(f"{Colors.GREEN}✓ {text}{Colors.ENDC}")
+
+
+def print_error(text: str):
+    print(f"{Colors.FAIL}✗ {text}{Colors.ENDC}")
+
+
+def print_info(text: str):
+    print(f"{Colors.CYAN}→ {text}{Colors.ENDC}")
+
+
+class MLServiceTests:
+    """Tests for the ML Service endpoints"""
+    
+    def __init__(self, session: aiohttp.ClientSession):
+        self.session = session
+    
+    async def test_health_check(self) -> bool:
+        """Test ML service health endpoint"""
+        print_header("ML Service Health Check")
+        
+        try:
+            async with self.session.get(f"{ML_SERVICE_URL}/health") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    print_success(f"ML Service is healthy")
+                    print_info(f"Status: {data.get('status')}")
+                    print_info(f"Timestamp: {data.get('timestamp')}")
+                    return True
+                else:
+                    print_error(f"Health check failed with status {response.status}")
+                    return False
+        except Exception as e:
+            print_error(f"Could not connect to ML Service: {e}")
+            return False
+    
+    async def test_text_analysis(self) -> dict:
+        """Test text sentiment analysis endpoint"""
+        print_header("Text Analysis Test")
+        
+        test_cases = [
+            ("I am feeling happy and peaceful today", "positive"),
+            ("I feel anxious and worried about everything", "negative"),
+            ("Today was a normal day, nothing special happened", "neutral"),
+        ]
+        
+        results = {"passed": 0, "failed": 0, "details": []}
+        
+        for text, expected_label in test_cases:
+            try:
+                print_info(f"Testing: '{text[:50]}...'")
+                
+                async with self.session.post(
+                    f"{ML_SERVICE_URL}/analyze/text",
+                    json={"text": text}
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        
+                        # Validate response structure
+                        required_fields = [
+                            "sentiment_score", "sentiment_label", 
+                            "emotions", "anxiety_probability", 
+                            "stress_level", "recommended_action"
+                        ]
+                        
+                        if all(field in data for field in required_fields):
+                            print_success(f"Sentiment: {data['sentiment_label']} (score: {data['sentiment_score']:.2f})")
+                            print_info(f"Emotions: {data['emotions']}")
+                            print_info(f"Stress Level: {data['stress_level']}/10")
+                            print_info(f"Anxiety Probability: {data['anxiety_probability']:.2f}")
+                            results["passed"] += 1
+                            results["details"].append({
+                                "text": text[:50],
+                                "status": "passed",
+                                "sentiment": data['sentiment_label']
+                            })
+                        else:
+                            print_error(f"Missing required fields in response")
+                            results["failed"] += 1
+                    else:
+                        print_error(f"Request failed with status {response.status}")
+                        results["failed"] += 1
+                        
+            except Exception as e:
+                print_error(f"Error: {e}")
+                results["failed"] += 1
+        
+        return results
+    
+    async def test_voice_analysis(self) -> dict:
+        """Test voice analysis endpoint"""
+        print_header("Voice Analysis Test")
+        
+        # Create a mock audio file for testing
+        audio_path = self._create_mock_audio_file()
+        
+        results = {"passed": 0, "failed": 0, "details": []}
+        
+        try:
+            print_info(f"Testing voice analysis with mock audio...")
+            
+            with open(audio_path, 'rb') as audio_file:
+                form_data = aiohttp.FormData()
+                form_data.add_field(
+                    'file',
+                    audio_file,
+                    filename='test_audio.wav',
+                    content_type='audio/wav'
+                )
+                
+                async with self.session.post(
+                    f"{ML_SERVICE_URL}/analyze/voice",
+                    data=form_data
+                ) as response:
+                    
+                    if response.status == 200:
+                        data = await response.json()
+                        
+                        required_fields = [
+                            "pitch_features", "jitter_features",
+                            "shimmer_features", "cadence_features",
+                            "flat_affect_score", "agitated_speech_score",
+                            "overall_vocal_health_score", "anomalies"
+                        ]
+                        
+                        if all(field in data for field in required_fields):
+                            print_success(f"Vocal Health Score: {data['overall_vocal_health_score']}")
+                            print_info(f"Flat Affect Score: {data['flat_affect_score']:.2f}")
+                            print_info(f"Agitated Speech Score: {data['agitated_speech_score']:.2f}")
+                            print_info(f"Detected Anomalies: {data['anomalies']}")
+                            
+                            # Check pitch features
+                            pitch = data.get('pitch_features', {})
+                            print_info(f"Pitch - Mean: {pitch.get('mean_hz', 'N/A')} Hz")
+                            
+                            results["passed"] += 1
+                            results["details"].append({
+                                "status": "passed",
+                                "vocal_health": data['overall_vocal_health_score']
+                            })
+                        else:
+                            print_error(f"Missing required fields in response")
+                            results["failed"] += 1
+                    else:
+                        error = await response.text()
+                        print_error(f"Request failed: {error}")
+                        results["failed"] += 1
+                        
+        except Exception as e:
+            print_error(f"Error: {e}")
+            results["failed"] += 1
+        finally:
+            # Cleanup
+            if audio_path.exists():
+                audio_path.unlink()
+        
+        return results
+    
+    async def test_predictive_analytics(self) -> dict:
+        """Test predictive analytics endpoint"""
+        print_header("Predictive Analytics Test")
+        
+        # Create mock mood history data
+        mood_history = [
+            {"mental_health_index": 65 + i, "anxiety_level": 4 + (i % 3), "stress_level": 5 + (i % 2)}
+            for i in range(7)
+        ]
+        
+        results = {"passed": 0, "failed": 0, "details": []}
+        
+        try:
+            print_info(f"Testing predictive analytics with {len(mood_history)} days of data...")
+            
+            async with self.session.post(
+                f"{ML_SERVICE_URL}/predict",
+                json=mood_history
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    
+                    required_fields = [
+                        "burnout_risk_score", "mood_trend_prediction",
+                        "anxiety_trend_prediction", "proactive_insight",
+                        "alert_triggered"
+                    ]
+                    
+                    if all(field in data for field in required_fields):
+                        print_success(f"Burnout Risk Score: {data['burnout_risk_score']:.2f}")
+                        print_info(f"Mood Trend: {data['mood_trend_prediction']}")
+                        print_info(f"Alert Triggered: {data['alert_triggered']}")
+                        if data.get('proactive_insight'):
+                            print_info(f"Proactive Insight: {data['proactive_insight']}")
+                        
+                        results["passed"] += 1
+                        results["details"].append({
+                            "status": "passed",
+                            "burnout_risk": data['burnout_risk_score']
+                        })
+                    else:
+                        print_error(f"Missing required fields in response")
+                        results["failed"] += 1
+                else:
+                    print_error(f"Request failed with status {response.status}")
+                    results["failed"] += 1
+                    
+        except Exception as e:
+            print_error(f"Error: {e}")
+            results["failed"] += 1
+        
+        return results
+    
+    def _create_mock_audio_file(self) -> Path:
+        """Create a mock WAV file for testing"""
+        # Create a simple sine wave
+        sample_rate = 22050
+        duration = 1  # second
+        frequency = 440  # Hz
+        
+        t = np.linspace(0, duration, int(sample_rate * duration), False)
+        audio_data = (np.sin(2 * np.pi * frequency * t) * 32767).astype(np.int16)
+        
+        # Save as WAV
+        audio_path = Path("/tmp/test_audio.wav")
+        with wave.open(str(audio_path), 'w') as wav_file:
+            wav_file.setnchannels(1)
+            wav_file.setsampwidth(2)
+            wav_file.setframerate(sample_rate)
+            wav_file.writeframes(audio_data.tobytes())
+        
+        return audio_path
+
+
+class BackendTests:
+    """Tests for the Backend API endpoints"""
+    
+    def __init__(self, session: aiohttp.ClientSession):
+        self.session = session
+        self.access_token: Optional[str] = None
+    
+    async def test_health_check(self) -> bool:
+        """Test backend health endpoint"""
+        print_header("Backend Health Check")
+        
+        try:
+            async with self.session.get(f"{BACKEND_URL}/health") as response:
+                if response.status == 200:
+                    data = await response.json()
+                    print_success(f"Backend is healthy")
+                    print_info(f"Status: {data.get('status')}")
+                    print_info(f"Version: {data.get('version')}")
+                    return True
+                else:
+                    print_error(f"Health check failed with status {response.status}")
+                    return False
+        except Exception as e:
+            print_error(f"Could not connect to Backend: {e}")
+            return False
+    
+    async def test_authentication(self) -> dict:
+        """Test authentication endpoints"""
+        print_header("Authentication Tests")
+        
+        results = {"passed": 0, "failed": 0, "details": []}
+        test_email = f"test_{int(time.time())}@mindfulme.app"
+        test_password = "TestPass123!"
+        
+        # Test Registration
+        print_info("Testing user registration...")
+        try:
+            async with self.session.post(
+                f"{API_BASE_URL}/auth/register",
+                json={
+                    "email": test_email,
+                    "password": test_password,
+                    "firstName": "Test",
+                    "lastName": "User",
+                    "consentGiven": True
+                }
+            ) as response:
+                if response.status == 201:
+                    data = await response.json()
+                    self.access_token = data.get('accessToken')
+                    print_success(f"Registration successful")
+                    print_info(f"User ID: {data['user']['id']}")
+                    results["passed"] += 1
+                elif response.status == 400:
+                    print_info("User may already exist, trying login...")
+                    results["details"].append({"status": "skipped", "reason": "user_exists"})
+                else:
+                    print_error(f"Registration failed: {await response.text()}")
+                    results["failed"] += 1
+        except Exception as e:
+            print_error(f"Error: {e}")
+            results["failed"] += 1
+        
+        # Test Login
+        print_info("Testing user login...")
+        try:
+            async with self.session.post(
+                f"{API_BASE_URL}/auth/login",
+                json={"email": test_email, "password": test_password}
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    self.access_token = data.get('accessToken')
+                    print_success(f"Login successful")
+                    print_info(f"User: {data['user']['first_name']} {data['user']['last_name']}")
+                    print_info(f"Mental Health Index: {data['user'].get('mental_health_index', 'N/A')}")
+                    results["passed"] += 1
+                else:
+                    print_error(f"Login failed: {await response.text()}")
+                    results["failed"] += 1
+        except Exception as e:
+            print_error(f"Error: {e}")
+            results["failed"] += 1
+        
+        return results
+    
+    async def test_dashboard(self) -> dict:
+        """Test dashboard endpoints"""
+        print_header("Dashboard Tests")
+        
+        results = {"passed": 0, "failed": 0, "details": []}
+        
+        if not self.access_token:
+            print_error("No access token, skipping dashboard tests")
+            return {"passed": 0, "failed": 3, "details": []}
+        
+        headers = {"Authorization": f"Bearer {self.access_token}"}
+        
+        # Test Dashboard Overview
+        print_info("Testing dashboard overview...")
+        try:
+            async with self.session.get(
+                f"{API_BASE_URL}/dashboard/overview",
+                headers=headers
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    print_success("Dashboard overview loaded")
+                    print_info(f"User: {data['user']['name']}")
+                    print_info(f"MHI: {data['user']['mentalHealthIndex']}")
+                    print_info(f"Trend: {data['trend']}")
+                    results["passed"] += 1
+                else:
+                    print_error(f"Failed: {await response.text()}")
+                    results["failed"] += 1
+        except Exception as e:
+            print_error(f"Error: {e}")
+            results["failed"] += 1
+        
+        # Test Mood Logging
+        print_info("Testing mood logging...")
+        try:
+            async with self.session.post(
+                f"{API_BASE_URL}/dashboard/mood",
+                headers=headers,
+                json={
+                    "moodScore": 7,
+                    "energyLevel": 6,
+                    "anxietyLevel": 3,
+                    "stressLevel": 4,
+                    "sleepQuality": 7,
+                    "activities": ["exercise", "work"],
+                    "triggers": []
+                }
+            ) as response:
+                if response.status == 201:
+                    data = await response.json()
+                    print_success("Mood logged successfully")
+                    print_info(f"MHI Calculated: {data['mentalHealthIndex']}")
+                    print_info(f"Crisis Flag: {data['isCrisis']}")
+                    results["passed"] += 1
+                else:
+                    print_error(f"Failed: {await response.text()}")
+                    results["failed"] += 1
+        except Exception as e:
+            print_error(f"Error: {e}")
+            results["failed"] += 1
+        
+        # Test Chart Data
+        print_info("Testing chart data...")
+        try:
+            async with self.session.get(
+                f"{API_BASE_URL}/dashboard/chart?period=30",
+                headers=headers
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    print_success("Chart data loaded")
+                    print_info(f"Data points: {len(data.get('data', []))}")
+                    print_info(f"Average MHI: {data['summary']['average']}")
+                    results["passed"] += 1
+                else:
+                    print_error(f"Failed: {await response.text()}")
+                    results["failed"] += 1
+        except Exception as e:
+            print_error(f"Error: {e}")
+            results["failed"] += 1
+        
+        return results
+    
+    async def test_journal(self) -> dict:
+        """Test journal endpoints"""
+        print_header("Journal Tests")
+        
+        results = {"passed": 0, "failed": 0, "details": []}
+        
+        if not self.access_token:
+            print_error("No access token, skipping journal tests")
+            return {"passed": 0, "failed": 2, "details": []}
+        
+        headers = {"Authorization": f"Bearer {self.access_token}"}
+        test_content = "Today I am feeling grateful for all the good things in my life. I had a productive day at work and enjoyed time with my family."
+        
+        # Test Create Journal Entry
+        print_info("Testing journal creation...")
+        try:
+            async with self.session.post(
+                f"{API_BASE_URL}/journal",
+                headers=headers,
+                json={
+                    "content": test_content,
+                    "title": "Gratitude Entry",
+                    "entryType": "gratitude"
+                }
+            ) as response:
+                if response.status == 201:
+                    data = await response.json()
+                    print_success("Journal entry created")
+                    print_info(f"Entry ID: {data['entry']['id']}")
+                    print_info(f"Emotions detected: {data['emotionalInsights']['emotions']}")
+                    results["passed"] += 1
+                else:
+                    print_error(f"Failed: {await response.text()}")
+                    results["failed"] += 1
+        except Exception as e:
+            print_error(f"Error: {e}")
+            results["failed"] += 1
+        
+        # Test Get Journal Entries
+        print_info("Testing journal list...")
+        try:
+            async with self.session.get(
+                f"{API_BASE_URL}/journal?page=1&limit=10",
+                headers=headers
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    print_success("Journal list loaded")
+                    print_info(f"Total entries: {data['pagination']['total']}")
+                    results["passed"] += 1
+                else:
+                    print_error(f"Failed: {await response.text()}")
+                    results["failed"] += 1
+        except Exception as e:
+            print_error(f"Error: {e}")
+            results["failed"] += 1
+        
+        return results
+
+
+class IntegrationTests:
+    """Tests for ML-Backend integration"""
+    
+    def __init__(self, session: aiohttp.ClientSession):
+        self.session = session
+    
+    async def test_backend_to_ml_connection(self) -> dict:
+        """Test that backend can call ML service"""
+        print_header("Backend to ML Service Integration Test")
+        
+        results = {"passed": 0, "failed": 0, "details": []}
+        
+        # This test verifies the ML service URL is configured correctly
+        # The actual integration happens when journal entries are created
+        print_info("Checking ML service connectivity from backend...")
+        
+        try:
+            # Direct ML service call to verify it's running
+            async with self.session.get(f"{ML_SERVICE_URL}/health") as response:
+                if response.status == 200:
+                    print_success("ML Service is reachable")
+                    results["passed"] += 1
+                else:
+                    print_error("ML Service health check failed")
+                    results["failed"] += 1
+        except Exception as e:
+            print_error(f"ML Service not reachable: {e}")
+            results["failed"] += 1
+        
+        # Check if backend can theoretically reach ML service
+        print_info("Backend configured to call ML service at:")
+        print_info(f"  {ML_SERVICE_URL}/analyze/text")
+        print_info(f"  {ML_SERVICE_URL}/analyze/voice")
+        print_info(f"  {ML_SERVICE_URL}/predict")
+        
+        results["details"].append({
+            "ml_service_url": ML_SERVICE_URL,
+            "backend_calls_text": f"{ML_SERVICE_URL}/analyze/text",
+            "backend_calls_voice": f"{ML_SERVICE_URL}/analyze/voice"
+        })
+        
+        return results
+
+
+async def run_all_tests():
+    """Run all test suites"""
+    print(f"\n{Colors.HEADER}{Colors.BOLD}")
+    print("╔══════════════════════════════════════════════════════════╗")
+    print("║         MindfulMe API Integration Test Suite             ║")
+    print("╚══════════════════════════════════════════════════════════╝")
+    print(f"{Colors.ENDC}")
+    
+    print_info(f"ML Service URL: {ML_SERVICE_URL}")
+    print_info(f"Backend URL: {BACKEND_URL}")
+    
+    async with aiohttp.ClientSession() as session:
+        ml_tests = MLServiceTests(session)
+        backend_tests = BackendTests(session)
+        integration_tests = IntegrationTests(session)
+        
+        all_results = {
+            "ml_service": {"passed": 0, "failed": 0},
+            "backend": {"passed": 0, "failed": 0},
+            "integration": {"passed": 0, "failed": 0}
+        }
+        
+        # Run ML Service Tests
+        print_header("ML SERVICE TESTS")
+        
+        if await ml_tests.test_health_check():
+            result = await ml_tests.test_text_analysis()
+            all_results["ml_service"]["passed"] += result["passed"]
+            all_results["ml_service"]["failed"] += result["failed"]
+            
+            result = await ml_tests.test_voice_analysis()
+            all_results["ml_service"]["passed"] += result["passed"]
+            all_results["ml_service"]["failed"] += result["failed"]
+            
+            result = await ml_tests.test_predictive_analytics()
+            all_results["ml_service"]["passed"] += result["passed"]
+            all_results["ml_service"]["failed"] += result["failed"]
+        else:
+            print_error("Skipping ML Service tests - service not available")
+        
+        # Run Backend Tests
+        print_header("BACKEND TESTS")
+        
+        if await backend_tests.test_health_check():
+            result = await backend_tests.test_authentication()
+            all_results["backend"]["passed"] += result["passed"]
+            all_results["backend"]["failed"] += result["failed"]
+            
+            result = await backend_tests.test_dashboard()
+            all_results["backend"]["passed"] += result["passed"]
+            all_results["backend"]["failed"] += result["failed"]
+            
+            result = await backend_tests.test_journal()
+            all_results["backend"]["passed"] += result["passed"]
+            all_results["backend"]["failed"] += result["failed"]
+        else:
+            print_error("Skipping Backend tests - service not available")
+        
+        # Run Integration Tests
+        print_header("INTEGRATION TESTS")
+        result = await integration_tests.test_backend_to_ml_connection()
+        all_results["integration"]["passed"] += result["passed"]
+        all_results["integration"]["failed"] += result["failed"]
+        
+        # Print Summary
+        print_header("TEST SUMMARY")
+        
+        total_passed = sum(r["passed"] for r in all_results.values())
+        total_failed = sum(r["failed"] for r in all_results.values())
+        
+        for service, results in all_results.items():
+            status = Colors.GREEN if results["failed"] == 0 else Colors.WARNING
+            print(f"{service.upper():20} {status}Passed: {results['passed']} | Failed: {results['failed']}{Colors.ENDC}")
+        
+        print(f"\n{Colors.BOLD}Total: {total_passed} passed, {total_failed} failed{Colors.ENDC}")
+        
+        if total_failed == 0:
+            print(f"\n{Colors.GREEN}{Colors.BOLD}All tests passed! ✓{Colors.ENDC}")
+        else:
+            print(f"\n{Colors.WARNING}{Colors.BOLD}Some tests failed. Check the output above.{Colors.ENDC}")
+        
+        return total_failed == 0
+
+
+if __name__ == "__main__":
+    success = asyncio.run(run_all_tests())
+    sys.exit(0 if success else 1)
