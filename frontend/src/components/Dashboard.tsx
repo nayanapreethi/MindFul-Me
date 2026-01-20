@@ -137,7 +137,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data: propData, onNavigate }) => 
             {data.proactiveInsights.map((insight) => (
               <View key={insight.id} style={styles.alertContent}>
                 <Text style={styles.alertMessage}>{insight.message}</Text>
-                <Text style={[styles.alertSeverity, styles[insight.severity]]}>
+        <Text style={[styles.alertSeverity, styles[insight.severity]]}>
                   {insight.severity.toUpperCase()}
                 </Text>
               </View>

@@ -34,6 +34,10 @@ pytest==7.4.4
 pytest-asyncio==0.23.3
 httpx==0.26.0
 
-# OpenAI for GPT-based analysis (optional)
-openai==1.6.1
+# ONNX Runtime (alternative to torch for lighter weight)
+# onnxruntime==1.17.1
+
+# Audio utilities
+librosa==0.10.1
+resampy==0.4.2
 

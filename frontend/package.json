@@ -1,34 +1,23 @@
 {
   "name": "mindful-me-frontend",
   "version": "1.0.0",
-  "description": "MindfulMe - Mental Health Platform React Native App",
+  "description": "MindfulMe - Mental Health Platform (Offline Demo)",
   "main": "src/App.tsx",
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
-    "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
   },
   "dependencies": {
-    "@react-native-async-storage/async-storage": "^1.21.0",
     "@react-navigation/native": "^6.1.9",
     "@react-navigation/native-stack": "^6.9.17",
-    "@reduxjs/toolkit": "^2.0.1",
-    "axios": "^1.6.2",
     "react": "18.2.0",
     "react-native": "0.73.2",
-    "react-native-biometrics": "^3.0.1",
-    "react-native-chart-kit": "^6.12.0",
-    "react-native-config": "^1.5.1",
-    "react-native-gesture-handler": "^2.14.0",
     "react-native-linear-gradient": "^2.8.3",
-    "react-native-reanimated": "^3.6.1",
     "react-native-safe-area-context": "^4.8.2",
     "react-native-screens": "^3.29.0",
     "react-native-svg": "^14.1.0",
-    "react-native-vector-icons": "^10.0.3",
-    "react-redux": "^9.0.4",
     "victory-native": "^36.6.11"
   },
   "devDependencies": {
@@ -36,20 +25,10 @@
     "@babel/preset-env": "^7.23.6",
     "@babel/runtime": "^7.23.6",
     "@react-native/babel-preset": "0.73.19",
-    "@react-native/eslint-config": "0.73.2",
     "@react-native/metro-config": "0.73.3",
-    "@react-native/typescript-config": "0.73.1",
     "@types/react": "^18.2.45",
-    "@types/react-native-vector-icons": "^6.4.18",
-    "@types/jest": "^29.5.11",
-    "eslint": "^8.56.0",
-    "jest": "^29.7.0",
-    "prettier": "^3.1.1",
-    "react-test-renderer": "18.2.0",
+    "@types/react-native": "^0.73.0",
     "typescript": "5.3.3"
-  },
-  "engines": {
-    "node": ">=18"
   }
 }
 
