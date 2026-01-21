@@ -63,6 +63,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/journal', journalRoutes);
 app.use('/api/voice', voiceRoutes);
 app.use('/api/medication', medicationRoutes);
+app.use('/api/doctor', doctorRoutes);
 
 // 404 handler
 app.use((req: Request, res: Response) => {
