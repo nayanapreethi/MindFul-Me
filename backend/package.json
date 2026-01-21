@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@prisma/client": "^5.7.1",
+    "@supabase/supabase-js": "^2.91.0",
     "axios": "^1.6.2",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -47,4 +48,3 @@
     "typescript": "^5.3.3"
   }
 }
-

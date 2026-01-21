@@ -13,6 +13,7 @@ import dashboardRoutes from './routes/dashboard';
 import journalRoutes from './routes/journal';
 import voiceRoutes from './routes/voice';
 import medicationRoutes from './routes/medication';
+import doctorRoutes from './routes/doctor';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
