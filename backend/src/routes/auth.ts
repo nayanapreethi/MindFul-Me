@@ -5,7 +5,7 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt, { Secret } from 'jsonwebtoken';
+import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { supabase, TABLES, createUser, getUserByEmail, updateUser, insertAuditLog, User } from '../lib/supabase';
@@ -13,7 +13,7 @@ import { supabase, TABLES, createUser, getUserByEmail, updateUser, insertAuditLo
 const router = Router();
 
 // Environment variables
-const JWT_SECRET: Secret = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+const JWT_SECRET: string = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '30d';
 
@@ -42,7 +42,7 @@ function generateToken(userId: string, email: string): string {
   return jwt.sign(
     { userId, email },
     JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
+    { expiresIn: JWT_EXPIRES_IN } as SignOptions
   );
 }
 
@@ -51,9 +51,9 @@ function generateRefreshToken(userId: string): string {
   return jwt.sign(
     { userId, type: 'refresh' },
     JWT_SECRET,
-    { expiresIn: REFRESH_TOKEN_EXPIRES_IN }
-  }
-)
+    { expiresIn: REFRESH_TOKEN_EXPIRES_IN } as SignOptions
+  );
+}
 
 // Verify JWT token
 export function verifyToken(token: string): { userId: string; email: string } | null {
@@ -112,7 +112,7 @@ router.post('/signup', async (req: Request, res: Response, next: NextFunction) =
     const user = await createUser({
       id: uuidv4(),
       email,
-      passwordHash: passwordHash,
+      password_hash: passwordHash,
       first_name: firstName,
       last_name: lastName,
       phone_number: phoneNumber,
