@@ -5,10 +5,10 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt, { Secret, SignOptions } from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
-import { supabase, TABLES, createUser, getUserByEmail, updateUser, insertAuditLog, User } from '../lib/supabase';
+import { createUser, getUserByEmail, getUserById, updateUser, insertAuditLog, User } from '../lib/supabase';
 
 const router = Router();
 

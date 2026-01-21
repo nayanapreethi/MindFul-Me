@@ -51,6 +51,7 @@ export const TABLES = {
 export interface User {
   id: string;
   email: string;
+  password_hash: string;
   first_name: string;
   last_name: string;
   phone_number?: string;
@@ -62,6 +63,12 @@ export interface User {
   two_factor_enabled?: boolean;
   consent_given?: boolean;
   consent_timestamp?: string;
+  failed_login_attempts?: number;
+  locked_until?: string | null;
+  last_login?: string;
+  notification_preferences?: Record<string, boolean>;
+  accessibility_settings?: Record<string, unknown>;
+  theme_preferences?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
